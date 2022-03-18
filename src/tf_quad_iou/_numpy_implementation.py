@@ -20,7 +20,7 @@ def intersect_segment(a: np.ndarray, b: np.ndarray):
 
     D = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
     if (abs(D) < 1e-8):
-        return [[]]
+        return np.array([[]])
 
     t = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)
     t /= D
@@ -29,9 +29,9 @@ def intersect_segment(a: np.ndarray, b: np.ndarray):
     u /= D
 
     if (t < 0 or t > 1 or u < 0 or u > 1):
-        return [[]]
+        return np.array([[]])
 
-    return [[x1 + t * (x2 - x1), y1 + t * (y2 - y1)]]
+    return np.array([[x1 + t * (x2 - x1), y1 + t * (y2 - y1)]])
 
 
 def points_in_polygon(polygon: np.ndarray, points: np.ndarray):
@@ -65,5 +65,37 @@ def points_in_polygon(polygon: np.ndarray, points: np.ndarray):
     return windingNumber != 0
 
 
-def intersect_box(a: np.ndarray, b: np.ndarray):
-    return []
+def intersect_quads(a: np.ndarray, b: np.ndarray):
+    """
+    Computes the intersection of quads
+
+    Args:
+        a (np.ndarray): (4,2) array of quad to compute intersection
+        b (np.ndarray): (4,2) array of quad to compute intersection
+
+    Returns:
+        np.ndarray: (N,2) array of the intersections it may contains duplicate
+            points.
+    """
+    cornersAinB = points_in_polygon(b, a)
+    cornersBinA = points_in_polygon(a, b)
+    corners_inside = np.concatenate([a[cornersAinB, :], b[cornersBinA, :]],
+                                    axis=0)
+    intersections = np.zeros((16, 2))
+    numberOfIntersections = 0
+    for startA, endA in zip(a, np.roll(a, -1, axis=0)):
+        for startB, endB in zip(b, np.roll(b, -1, axis=0)):
+            intersection = intersect_segment(
+                np.concatenate([endA[None, :], startA[None, :]], axis=0),
+                np.concatenate([endB[None, :], startB[None, :]], axis=0),
+            )
+            if intersection.shape[1] == 2:
+                intersections[numberOfIntersections] = intersection
+                numberOfIntersections += 1
+
+    allCorners = np.concatenate(
+        [corners_inside, intersections[:numberOfIntersections, :]], axis=0)
+    allCorners = np.unique(allCorners, axis=0)
+    cornersAtCentroid = allCorners - np.mean(allCorners, axis=0)
+    angles = np.arctan2(cornersAtCentroid[:, 1], cornersAtCentroid[:, 0])
+    return allCorners[np.argsort(angles), :]

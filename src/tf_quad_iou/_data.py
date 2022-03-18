@@ -141,9 +141,9 @@ BOX_INTERSECTIONS = [
         ], dtype=np.float32),
         Expected=np.array([
             [-1, -1],
-            [-1, 1],
-            [1, 1],
             [1, -1],
+            [1, 1],
+            [-1, 1],
         ],
                           dtype=np.float32),
     ),

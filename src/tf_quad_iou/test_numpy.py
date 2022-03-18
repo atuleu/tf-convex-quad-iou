@@ -29,7 +29,7 @@ class NumpyTestCase(unittest.TestCase):
         for d in udata.BOX_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.intersect_box(
+                    npi.intersect_quads(
                         d.Box1,
                         d.Box1,
                     ), d.Expected)
