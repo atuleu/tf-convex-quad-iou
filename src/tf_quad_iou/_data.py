@@ -288,27 +288,68 @@ BOX_INTERSECTIONS = [
     BoxesIntersectionData(
         Box1=np.array(
             [
-                [-1, -1],
-                [-1, 1],
-                [1, 1],
-                [1, -1],
+                [0, 0],
+                [8, 0],
+                [8, 10],
+                [0, 10],
             ],
             dtype=np.float32,
         ),
         Box2=np.array(
             [
-                [2, 2],
-                [3, 2],
-                [3, 3],
-                [2, 3],
+                [0, 0],
+                [6, 0],
+                [6, 8],
+                [0, 8],
             ],
             dtype=np.float32,
         ),
         Expected=np.array(
             [
+                [0, 0],
+                [6, 0],
+                [6, 8],
+                [0, 8],
             ],
             dtype=np.float32,
         ),
     ),
+]
 
+
+@dataclass
+class PolygonArea:
+    Polygon: np.ndarray
+    Area: np.float32
+
+
+POLYGON_AREA = [
+    PolygonArea(
+        Polygon=np.array(
+            [
+                [0, 0],
+                [0, 1],
+                [1, 1],
+                [1, 0],
+            ],
+            dtype=np.float32,
+        ),
+        Area=1,
+    ),
+    PolygonArea(
+        Polygon=np.array(
+            [
+                [0, 0],
+                [0, 0],
+                [0, 1],
+                [0, 1],
+                [1, 1],
+                [1, 1],
+                [1, 0],
+                [1, 0],
+            ],
+            dtype=np.float32,
+        ),
+        Area=1,
+    ),
 ]

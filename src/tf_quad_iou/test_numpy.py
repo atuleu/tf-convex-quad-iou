@@ -10,7 +10,7 @@ class NumpyTestCase(unittest.TestCase):
         for d in udata.SEGMENT_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.intersect_segment(
+                    npi.intersectSegment(
                         d.Segment1,
                         d.Segment2,
                     ),
@@ -21,7 +21,7 @@ class NumpyTestCase(unittest.TestCase):
         for d in udata.POINT_IN_QUADS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.points_in_polygon(d.Polygon, d.Points),
+                    npi.pointsInPolygon(d.Polygon, d.Points),
                     d.Expected,
                 )
 
@@ -29,7 +29,13 @@ class NumpyTestCase(unittest.TestCase):
         for d in udata.BOX_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.uniqueVertex(npi.intersect_quads(
+                    npi.uniqueVertex(npi.intersectQuads(
                         d.Box1,
                         d.Box2,
                     )), d.Expected)
+
+    def test_boxes_area(self):
+        for d in udata.POLYGON_AREA:
+            with self.subTest(str(d)):
+                np.testing.assert_almost_equal(npi.polygonArea(d.Polygon),
+                                               d.Area)

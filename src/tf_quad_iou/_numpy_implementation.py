@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def intersect_segment(a: np.ndarray, b: np.ndarray):
+def intersectSegment(a: np.ndarray, b: np.ndarray):
     """Intersects two segments
 
     Literally taken from https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
@@ -34,7 +34,7 @@ def intersect_segment(a: np.ndarray, b: np.ndarray):
     return np.array([[x1 + t * (x2 - x1), y1 + t * (y2 - y1)]])
 
 
-def points_in_polygon(polygon: np.ndarray, points: np.ndarray):
+def pointsInPolygon(polygon: np.ndarray, points: np.ndarray):
     """Test if a point lies in a given polygon
 
     Args:
@@ -65,7 +65,7 @@ def points_in_polygon(polygon: np.ndarray, points: np.ndarray):
     return windingNumber != 0
 
 
-def intersect_quads(a: np.ndarray, b: np.ndarray):
+def intersectQuads(a: np.ndarray, b: np.ndarray):
     """
     Computes the intersection of quads
 
@@ -77,8 +77,8 @@ def intersect_quads(a: np.ndarray, b: np.ndarray):
         np.ndarray: (N,2) array of the intersections it may contains duplicate
             points.
     """
-    cornersAinB = points_in_polygon(b, a)
-    cornersBinA = points_in_polygon(a, b)
+    cornersAinB = pointsInPolygon(b, a)
+    cornersBinA = pointsInPolygon(a, b)
 
     corners_inside = np.concatenate([a[cornersAinB, :], b[cornersBinA, :]],
                                     axis=0)
@@ -86,7 +86,7 @@ def intersect_quads(a: np.ndarray, b: np.ndarray):
     numberOfIntersections = 0
     for startA, endA in zip(a, np.roll(a, -1, axis=0)):
         for startB, endB in zip(b, np.roll(b, -1, axis=0)):
-            intersection = intersect_segment(
+            intersection = intersectSegment(
                 np.concatenate([endA[None, :], startA[None, :]], axis=0),
                 np.concatenate([endB[None, :], startB[None, :]], axis=0),
             )
@@ -100,6 +100,19 @@ def intersect_quads(a: np.ndarray, b: np.ndarray):
     cornersAtCentroid = allCorners - np.mean(allCorners, axis=0)
     angles = np.arctan2(cornersAtCentroid[:, 1], cornersAtCentroid[:, 0])
     return allCorners[np.argsort(angles), :]
+
+
+def polygonArea(a: np.ndarray):
+    """
+    Computes the area of a polygon
+
+    Args:
+        a (np.ndarray): (N,2)
+    Returns:
+        float32: the area of the polygon
+    """
+    rolledA = np.roll(a, -1, axis=-2)
+    return 0.5 * abs(np.sum(a[:, 0] * rolledA[:, 1] - a[:, 1] * rolledA[:, 0]))
 
 
 def uniqueVertex(a: np.ndarray):
