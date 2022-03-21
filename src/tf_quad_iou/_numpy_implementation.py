@@ -79,6 +79,7 @@ def intersect_quads(a: np.ndarray, b: np.ndarray):
     """
     cornersAinB = points_in_polygon(b, a)
     cornersBinA = points_in_polygon(a, b)
+
     corners_inside = np.concatenate([a[cornersAinB, :], b[cornersBinA, :]],
                                     axis=0)
     intersections = np.zeros((16, 2))
@@ -92,10 +93,23 @@ def intersect_quads(a: np.ndarray, b: np.ndarray):
             if intersection.shape[1] == 2:
                 intersections[numberOfIntersections] = intersection
                 numberOfIntersections += 1
-
     allCorners = np.concatenate(
         [corners_inside, intersections[:numberOfIntersections, :]], axis=0)
-    allCorners = np.unique(allCorners, axis=0)
+    if allCorners.shape[0] == 0:
+        return np.array([], dtype=np.float32)
     cornersAtCentroid = allCorners - np.mean(allCorners, axis=0)
     angles = np.arctan2(cornersAtCentroid[:, 1], cornersAtCentroid[:, 0])
     return allCorners[np.argsort(angles), :]
+
+
+def uniqueVertex(a: np.ndarray):
+    """Returns unique polygon vertices, keeping the order
+
+    Args:
+        a (np.ndarray: (N,2) a list of vertices
+
+    Returns:
+        np.ndarray: unique vertices in a, keeping it sorted
+    """
+    indexes = np.unique(a, axis=0, return_index=True)[1]
+    return np.array([a[index, ...] for index in sorted(indexes)])

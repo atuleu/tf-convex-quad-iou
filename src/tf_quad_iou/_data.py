@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import math
 
 
 @dataclass
@@ -56,65 +57,76 @@ POINT_IN_QUADS = [
     # -- With a square --
     PointsInPolygonData(
         np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]], dtype=np.float32),
-        np.array([
-            [0, 0],
-            [1, 2],
-            [1, -2],
-            [-1, -1],
-            [1, 1],
-            [-1, 1],
-            [1, -1],
-            [0, 1],
-            [0, -1],
-            [-1, 0],
-            [1, 0],
-        ],
-                 dtype=np.float32),
-        np.array([True,
-                  False,
-                  False,
-                  True,
-                  True,
-                  True,
-                  True,
-                  True,
-                  True,
-                  True,
-                  True,
+        np.array(
+            [
+                [0, 0],
+                [1, 2],
+                [1, -2],
+                [-1, -1],
+                [1, 1],
+                [-1, 1],
+                [1, -1],
+                [0, 1],
+                [0, -1],
+                [-1, 0],
+                [1, 0],
             ],
-                 dtype=bool),
+            dtype=np.float32,
+        ),
+        np.array(
+            [
+                True,
+                False,
+                False,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+            ],
+            dtype=bool,
+        ),
     ),
     # -- With an hourglass --
     # just above the center is inside
     PointsInPolygonData(
         np.array([[-1, -1], [1, -1], [-1, 1], [1, 1]], dtype=np.float32),
-        np.array([
-            [0.0, 1.0e-6],
-            [1.0e-6, 0.0],
-            [0.0, 0.0],
-            [-1, -1],
-            [1, 1],
-            [-1, 1],
-            [1, -1],
-            [0, 1],
-            [0, -1],
-            [-1, 0],
-            [1, 0],
-        ],
-                 dtype=np.float32), np.array([True,
-                                              False,
-                                              False,
-                                              True,
-                                              True,
-                                              True,
-                                              True,
-                                              True,
-                                              True,
-                                              False,
-                                              False,
-                 ],
-                                             dtype=bool),
-        )
+        np.array(
+            [
+                [0.0, 1.0e-6],
+                [1.0e-6, 0.0],
+                [0.0, 0.0],
+                [-1, -1],
+                [1, 1],
+                [-1, 1],
+                [1, -1],
+                [0, 1],
+                [0, -1],
+                [-1, 0],
+                [1, 0],
+            ],
+            dtype=np.float32,
+        ),
+        np.array(
+            [
+                True,
+                False,
+                False,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                False,
+                False,
+            ],
+            dtype=bool,
+        ),
+    ),
 ]
 
 
@@ -125,26 +137,178 @@ class BoxesIntersectionData:
     Expected: np.ndarray
 
 
+sqrt2 = math.sqrt(2)
 BOX_INTERSECTIONS = [
     BoxesIntersectionData(
-        Box1=np.array([
-            [-1, -1],
-            [-1, 1],
-            [1, 1],
-            [1, -1],
-        ], dtype=np.float32),
-        Box2=np.array([
-            [-1, -1],
-            [-1, 1],
-            [1, 1],
-            [1, -1],
-        ], dtype=np.float32),
-        Expected=np.array([
-            [-1, -1],
-            [1, -1],
-            [1, 1],
-            [-1, 1],
-        ],
-                          dtype=np.float32),
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+                [-1, -1],
+                [1, -1],
+                [1, 1],
+                [-1, 1],
+            ],
+            dtype=np.float32,
+        ),
     ),
+    BoxesIntersectionData(
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [0, 0],
+                [0, 2],
+                [2, 2],
+                [2, 0],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+            ],
+            dtype=np.float32,
+        ),
+    ),
+    BoxesIntersectionData(
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [0, sqrt2],
+                [sqrt2, 0],
+                [0, -sqrt2],
+                [-sqrt2, 0],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+                [-1, -sqrt2 + 1],
+                [-sqrt2 + 1, -1],
+                [sqrt2 - 1, -1],
+                [1, -sqrt2 + 1],
+                [1, sqrt2 - 1],
+                [sqrt2 - 1, 1],
+                [-sqrt2 + 1, 1],
+                [-1, sqrt2 - 1],
+            ],
+            dtype=np.float32,
+        ),
+    ),
+    BoxesIntersectionData(
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [-1, 1],
+                [0, 0],
+                [1, 0],
+                [2, 1],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [-1, 1],
+            ],
+            dtype=np.float32,
+        ),
+    ),
+    BoxesIntersectionData(
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [1, 1],
+                [2, 1],
+                [2, 2],
+                [1, 2],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+                [1, 1],
+            ],
+            dtype=np.float32,
+        ),
+    ),
+    BoxesIntersectionData(
+        Box1=np.array(
+            [
+                [-1, -1],
+                [-1, 1],
+                [1, 1],
+                [1, -1],
+            ],
+            dtype=np.float32,
+        ),
+        Box2=np.array(
+            [
+                [2, 2],
+                [3, 2],
+                [3, 3],
+                [2, 3],
+            ],
+            dtype=np.float32,
+        ),
+        Expected=np.array(
+            [
+            ],
+            dtype=np.float32,
+        ),
+    ),
+
 ]
