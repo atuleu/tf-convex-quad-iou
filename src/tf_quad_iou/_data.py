@@ -3,6 +3,7 @@ import numpy as np
 import math
 import tensorflow as tf
 
+sqrt2 = math.sqrt(2)
 
 @dataclass
 class SegmentIntersectionData:
@@ -83,10 +84,14 @@ POINT_IN_QUADS = [
                 [1, 1],
                 [-1, 1],
                 [1, -1],
-                [0, 1],
-                [0, -1],
-                [-1, 0],
+                [0, 1 - 1e-6],
+                [0, -1 + 1e-6],
+                [-1 + 1e-6, 0],
+                [1 - 1e-6, 0],
                 [1, 0],
+                [0, 1],
+                [-1, 0],
+                [0, -1],
             ],
             dtype=np.float32,
         ),
@@ -96,11 +101,15 @@ POINT_IN_QUADS = [
                 False,
                 False,
                 True,
+                False,
+                False,
+                False,
                 True,
                 True,
                 True,
                 True,
-                True,
+                False,
+                False,
                 True,
                 True,
             ],
@@ -120,10 +129,14 @@ POINT_IN_QUADS = [
                 [1, 1],
                 [-1, 1],
                 [1, -1],
-                [0, 1],
-                [0, -1],
-                [-1, 0],
+                [0, 1 - 1e-6],
+                [0, -1 + 1e-6],
+                [-1 + 1e-6, 0],
+                [1 - 1e-6, 0],
                 [1, 0],
+                [0, 1],
+                [-1, 0],
+                [0, -1],
             ],
             dtype=np.float32,
         ),
@@ -133,11 +146,58 @@ POINT_IN_QUADS = [
                 False,
                 False,
                 True,
+                False,
+                False,
+                False,
+                True,
+                True,
+                False,
+                False,
+                False,
+                False,
+                False,
+                True,
+            ],
+            dtype=bool,
+        ),
+    ),
+    PointsInPolygonData(
+        np.array([[0, -1], [1, 0], [0, 1], [-1, 0]], dtype=np.float32),
+        np.array(
+            [
+                [0.0, 0.0],
+                [-1.0, 1.0],
+                [1.0, 1.0],
+                [-1, 0],
+                [0, -1],
+                [1, 0],
+                [0, 1],
+                [0, 1 - 1e-6],
+                [0, -1 + 1e-6],
+                [-1 + 1e-6, 0],
+                [1 - 1e-6, 0],
+                [sqrt2 / 2, sqrt2 / 2],
+                [-sqrt2 / 2, sqrt2 / 2],
+                [sqrt2 / 2, -sqrt2 / 2],
+                [-sqrt2 / 2, -sqrt2 / 2],
+            ],
+            dtype=np.float32,
+        ),
+        np.array(
+            [
+                True,
+                False,
+                False,
+                True,
+                False,
+                False,
+                False,
                 True,
                 True,
                 True,
                 True,
-                True,
+                False,
+                False,
                 False,
                 False,
             ],
@@ -159,7 +219,7 @@ class BoxesIntersectionData:
         return (
             tf.constant([d.Box1 for d in l]),
             tf.constant([d.Box2 for d in l]),
-            tf.ragged.constant([d.Expected for d in l])
+            tf.ragged.constant([d.Expected for d in l]),
         )
 
     @staticmethod
@@ -176,7 +236,6 @@ class BoxesIntersectionData:
         )
 
 
-sqrt2 = math.sqrt(2)
 BOX_INTERSECTIONS = [
     BoxesIntersectionData(
         Box1=np.array(

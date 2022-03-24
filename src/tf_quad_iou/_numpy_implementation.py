@@ -19,7 +19,7 @@ def intersectSegment(a: np.ndarray, b: np.ndarray):
     x4, y4 = b[1, :]
 
     D = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-    if (abs(D) < 1e-8):
+    if abs(D) < 1e-8:
         return np.zeros((0, 2))
 
     t = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)
@@ -28,7 +28,7 @@ def intersectSegment(a: np.ndarray, b: np.ndarray):
     u = (x1 - x3) * (y1 - y2) - (y1 - y3) * (x1 - x2)
     u /= D
 
-    if (t < 0 or t > 1 or u < 0 or u > 1):
+    if t < 0 or t > 1 or u < 0 or u > 1:
         return np.zeros((0, 2))
 
     return np.array([[x1 + t * (x2 - x1), y1 + t * (y2 - y1)]])
@@ -51,16 +51,12 @@ def pointsInPolygon(polygon: np.ndarray, points: np.ndarray):
             points[:, 0][:, None] - polygon[:, 0]) * (polygonRolled[:, 1] -
                                                       polygon[:, 1])
     onUpEdge = (points[:, 1][:, None] >=
-                polygon[:, 1]) * (points[:, 1][:, None] <= polygonRolled[:, 1])
-    onDownEdge = (points[:, 1][:, None] <= polygon[:, 1]) * (
+                polygon[:, 1]) * (points[:, 1][:, None] < polygonRolled[:, 1])
+    onDownEdge = (points[:, 1][:, None] < polygon[:, 1]) * (
         points[:, 1][:, None] >= polygonRolled[:, 1])
 
-    windingNumber = 2 * (onUpEdge * (side_criterion > 0.0)).astype(
-        np.int32) + (onUpEdge * (side_criterion == 0.0)).astype(
-            np.int32) - 2 * (onDownEdge *
-                             (side_criterion < 0.0)).astype(np.int32) - (
-                                 onDownEdge *
-                                 (side_criterion == 0.0)).astype(np.int32)
+    windingNumber = (onUpEdge * (side_criterion > 0.0)).astype(
+        np.int32) - (onDownEdge * (side_criterion < 0.0)).astype(np.int32)
     windingNumber = np.sum(windingNumber, axis=-1)
     return windingNumber != 0
 

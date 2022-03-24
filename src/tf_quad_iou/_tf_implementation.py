@@ -59,18 +59,15 @@ def pointsInPolygon(polygon, points):
                 polygonRolled[..., 1] - polygon[..., 1])[:, None, :]
     onUpEdge = tf.math.logical_and(
         points[..., 1][..., None] >= polygon[..., 1][:, None, :],
-        points[..., 1][..., None] <= polygonRolled[..., 1][:, None, :])
+        points[..., 1][..., None] < polygonRolled[..., 1][:, None, :])
 
     onDownEdge = tf.math.logical_and(
-        points[..., 1][..., None] <= polygon[..., 1][:, None, :],
+        points[..., 1][..., None] < polygon[..., 1][:, None, :],
         points[..., 1][..., None] >= polygonRolled[..., 1][:, None, :])
-    windingNumber = tf.where(
-        onUpEdge,
-        tf.where(side_criterion > 0.0, 2, tf.where(
-            side_criterion == 0.0, 1, 0)), 0) - tf.where(
-                onDownEdge,
-                tf.where(side_criterion < 0.0, 2,
-                         tf.where(side_criterion == 0.0, 1, 0)), 0)
+    windingNumber = tf.cast(
+        tf.math.logical_and(onUpEdge, side_criterion > 0.0),
+        tf.int8) - tf.cast(
+            tf.math.logical_and(onDownEdge, side_criterion < 0.0), tf.int8)
 
     windingNumber = tf.math.reduce_sum(windingNumber, axis=-1)
     return windingNumber != 0
@@ -84,7 +81,7 @@ def _edges(a):
                      axis=-2)
 
 
-#@tf.function
+@tf.function
 def intersectQuads(a, b):
     """Computes the intersection of quads
 
@@ -97,13 +94,12 @@ def intersectQuads(a, b):
             may contains duplicate points.
 
     """
-
+    N = tf.shape(a)[0]
     cornersAInB = pointsInPolygon(b, a)
     cornersBInA = pointsInPolygon(a, b)
     corners = tf.concat([a, b], axis=1)
     maskInside = tf.concat([cornersAInB, cornersBInA], axis=1)
 
-    # edgesA = tf.repeat(_edges(a), axis=1, repeats=[4])
     edgesA = tf.reshape(tf.tile(_edges(a), multiples=[1, 1, 4, 1]),
                         shape=[-1, 16, 2, 2])
     edgesB = tf.tile(_edges(b), multiples=[1, 4, 1, 1])  # N,16,2,2
@@ -117,6 +113,7 @@ def intersectQuads(a, b):
         tf.boolean_mask(tf.concat([corners, intersections], axis=1), mask),
         sizes,
     )
+
     cornersAtCentroid = allCorners - tf.math.reduce_mean(allCorners,
                                                          axis=1)[:, None, :]
     angles = tf.math.atan2(
@@ -124,7 +121,7 @@ def intersectQuads(a, b):
         cornersAtCentroid[..., 0],
     )
 
-    indexes = tf.argsort(angles.to_tensor(default_value=float('NaN')), axis=1)
+    indexes = tf.argsort(angles.to_tensor(default_value=float('Inf')), axis=1)
     sortedCorners = tf.gather(allCorners.to_tensor(), indexes, batch_dims=1)
     finalMask = tf.RaggedTensor.from_row_lengths(
         tf.ones(tf.math.reduce_sum(sizes), tf.bool),
@@ -146,7 +143,7 @@ def uniqueVertex(a):
     return tf.ragged.constant(res)
 
 
-@tf.function
+@tf.function(experimental_relax_shapes=True)
 def polygonArea(a):
     """
     Computes the area of a polygon
