@@ -20,7 +20,7 @@ def intersectSegment(a: np.ndarray, b: np.ndarray):
 
     D = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
     if (abs(D) < 1e-8):
-        return np.array([[]])
+        return np.zeros((0, 2))
 
     t = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)
     t /= D
@@ -29,7 +29,7 @@ def intersectSegment(a: np.ndarray, b: np.ndarray):
     u /= D
 
     if (t < 0 or t > 1 or u < 0 or u > 1):
-        return np.array([[]])
+        return np.zeros((0, 2))
 
     return np.array([[x1 + t * (x2 - x1), y1 + t * (y2 - y1)]])
 
@@ -38,7 +38,7 @@ def pointsInPolygon(polygon: np.ndarray, points: np.ndarray):
     """Test if a point lies in a given polygon
 
     Args:
-        polygon (np.ndarray): (None,2) vertices of the polygon (order does matter)
+        polygon (np.ndarray): (K,2) vertices of the polygon (order does matter)
         point (np.ndarray): (N,2) points to test for
 
     Returns:
@@ -75,7 +75,7 @@ def intersectQuads(a: np.ndarray, b: np.ndarray):
 
     Returns:
         np.ndarray: (N,2) array of the intersections it may contains duplicate
-            points.
+            points. N can go up to 24.
     """
     cornersAinB = pointsInPolygon(b, a)
     cornersBinA = pointsInPolygon(a, b)
@@ -90,7 +90,7 @@ def intersectQuads(a: np.ndarray, b: np.ndarray):
                 np.concatenate([endA[None, :], startA[None, :]], axis=0),
                 np.concatenate([endB[None, :], startB[None, :]], axis=0),
             )
-            if intersection.shape[1] == 2:
+            if intersection.shape[0] == 1:
                 intersections[numberOfIntersections] = intersection
                 numberOfIntersections += 1
     allCorners = np.concatenate(
@@ -111,6 +111,8 @@ def polygonArea(a: np.ndarray):
     Returns:
         float32: the area of the polygon
     """
+    if len(a.shape) < 2 or a.shape[-2] == 0:
+        return 0.0
     rolledA = np.roll(a, -1, axis=-2)
     return 0.5 * abs(np.sum(a[:, 0] * rolledA[:, 1] - a[:, 1] * rolledA[:, 0]))
 
@@ -119,10 +121,31 @@ def uniqueVertex(a: np.ndarray):
     """Returns unique polygon vertices, keeping the order
 
     Args:
-        a (np.ndarray: (N,2) a list of vertices
+        a (np.ndarray): (N,2) a list of vertices
 
     Returns:
         np.ndarray: unique vertices in a, keeping it sorted
     """
     indexes = np.unique(a, axis=0, return_index=True)[1]
     return np.array([a[index, ...] for index in sorted(indexes)])
+
+
+def IoUMatrix(a: np.ndarray, b: np.ndarray):
+    """Computes Intersection over union matrix of collection of boxes.
+
+    Args:
+        a (np.ndarray): (N,4,2) a list of convex quads
+        b (np.ndarray): (M,4,2) a list of convex quads
+
+    Returns:
+        np.ndarray: (N,M) the matrices of iou of a and b
+    """
+    res = np.zeros((a.shape[0], b.shape[0]))
+    for i in range(a.shape[0]):
+        for j in range(b.shape[0]):
+            areaA = polygonArea(a[i, ...])
+            areaB = polygonArea(b[j, ...])
+            inter = intersectQuads(a[i, ...], b[j, ...])
+            areaInter = polygonArea(inter)
+            res[i, j] = areaInter / (areaA + areaB - areaInter)
+    return res

@@ -39,3 +39,16 @@ class NumpyTestCase(unittest.TestCase):
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(npi.polygonArea(d.Polygon),
                                                d.Area)
+
+    def test_IoU(self):
+        for d in udata.BOX_INTERSECTIONS:
+            with self.subTest(str(d)):
+                np.testing.assert_almost_equal(
+                    npi.IoUMatrix(d.Box1[None, ...], d.Box2[None, ...])[0, 0],
+                    d.IoU)
+
+    def test_IoUMatrix(self):
+        quads1, quads2, expected = udata.BoxesIntersectionData.IoUMatrix(
+            udata.BOX_INTERSECTIONS)
+        np.testing.assert_almost_equal(
+            npi.IoUMatrix(quads1.numpy(), quads2.numpy()), expected.numpy())
