@@ -61,17 +61,17 @@ def pointsInPolygon(polygon: np.ndarray, points: np.ndarray):
     return windingNumber != 0
 
 
-def intersectQuads(a: np.ndarray, b: np.ndarray):
+def intersectPolygons(a: np.ndarray, b: np.ndarray):
     """
     Computes the intersection of quads
 
     Args:
-        a (np.ndarray): (4,2) array of quad to compute intersection
-        b (np.ndarray): (4,2) array of quad to compute intersection
+        a (np.ndarray): (K,2) array of quad to compute intersection
+        b (np.ndarray): (K,2) array of quad to compute intersection
 
     Returns:
         np.ndarray: (N,2) array of the intersections it may contains duplicate
-            points. N can go up to 24.
+            points. N can go up to K ** 2 + 2 * K.
     """
     cornersAinB = pointsInPolygon(b, a)
     cornersBinA = pointsInPolygon(a, b)
@@ -141,7 +141,7 @@ def IoUMatrix(a: np.ndarray, b: np.ndarray):
         for j in range(b.shape[0]):
             areaA = polygonArea(a[i, ...])
             areaB = polygonArea(b[j, ...])
-            inter = intersectQuads(a[i, ...], b[j, ...])
+            inter = intersectPolygons(a[i, ...], b[j, ...])
             areaInter = polygonArea(inter)
             res[i, j] = areaInter / (areaA + areaB - areaInter)
     return res

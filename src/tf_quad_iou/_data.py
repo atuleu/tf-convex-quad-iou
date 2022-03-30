@@ -71,7 +71,7 @@ class PointsInPolygonData:
         )
 
 
-POINT_IN_QUADS = [
+POINTS_IN_POLYGONS = [
     # -- With a square --o
     PointsInPolygonData(
         np.array([[-1, -1], [1, -1], [1, 1], [-1, 1]], dtype=np.float32),
@@ -208,27 +208,27 @@ POINT_IN_QUADS = [
 
 
 @dataclass
-class BoxesIntersectionData:
-    Box1: np.ndarray
-    Box2: np.ndarray
+class PolygonsIntersectionData:
+    Polygon1: np.ndarray
+    Polygon2: np.ndarray
     Expected: np.ndarray
     IoU: float
 
     @staticmethod
     def ragged(l):
         return (
-            tf.constant([d.Box1 for d in l]),
-            tf.constant([d.Box2 for d in l]),
+            tf.constant([d.Polygon1 for d in l]),
+            tf.constant([d.Polygon2 for d in l]),
             tf.ragged.constant([d.Expected for d in l]),
         )
 
     @staticmethod
     def IoUMatrix(l):
-        defaultBox = l[0].Box1
-        filtered = [d for d in l if (d.Box1 == defaultBox).all()]
+        defaultPolygon = l[0].Polygon1
+        filtered = [d for d in l if (d.Polygon1 == defaultPolygon).all()]
         return (
-            tf.constant([d.Box2 for d in filtered]),
-            tf.concat([defaultBox[None, ...], [[[0, 0]] * 4]], axis=0),
+            tf.constant([d.Polygon2 for d in filtered]),
+            tf.concat([defaultPolygon[None, ...], [[[0, 0]] * 4]], axis=0),
             tf.concat(
                 [[[d.IoU] for d in filtered], [[0.0]] * len(filtered)],
                 axis=-1,
@@ -236,9 +236,9 @@ class BoxesIntersectionData:
         )
 
 
-BOX_INTERSECTIONS = [
-    BoxesIntersectionData(
-        Box1=np.array(
+POLYGON_INTERSECTIONS = [
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -247,7 +247,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -267,8 +267,8 @@ BOX_INTERSECTIONS = [
         ),
         IoU=1.0,
     ),
-    BoxesIntersectionData(
-        Box1=np.array(
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -277,7 +277,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [0, 0],
                 [0, 2],
@@ -297,8 +297,8 @@ BOX_INTERSECTIONS = [
         ),
         IoU=1 / 7,
     ),
-    BoxesIntersectionData(
-        Box1=np.array(
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -307,7 +307,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [0, sqrt2],
                 [sqrt2, 0],
@@ -331,8 +331,8 @@ BOX_INTERSECTIONS = [
         ),
         IoU=(1 - (sqrt2 - 1) ** 2) / (1 + (sqrt2 - 1) ** 2),
     ),
-    BoxesIntersectionData(
-        Box1=np.array(
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -341,7 +341,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [-1, 1],
                 [0, 0],
@@ -361,8 +361,8 @@ BOX_INTERSECTIONS = [
         ),
         IoU=(2 - 1 / 2) / (4 + 1 / 2),
     ),
-    BoxesIntersectionData(
-        Box1=np.array(
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [-1, -1],
                 [-1, 1],
@@ -371,7 +371,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [1, 1],
                 [2, 1],
@@ -388,8 +388,8 @@ BOX_INTERSECTIONS = [
         ),
         IoU=0.0,
     ),
-    BoxesIntersectionData(
-        Box1=np.array(
+    PolygonsIntersectionData(
+        Polygon1=np.array(
             [
                 [0, 0],
                 [8, 0],
@@ -398,7 +398,7 @@ BOX_INTERSECTIONS = [
             ],
             dtype=np.float32,
         ),
-        Box2=np.array(
+        Polygon2=np.array(
             [
                 [0, 0],
                 [6, 0],

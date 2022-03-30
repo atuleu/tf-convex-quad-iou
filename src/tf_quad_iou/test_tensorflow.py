@@ -26,8 +26,8 @@ class TensorflowTestCase(unittest.TestCase):
             r.to_tensor(default_value=np.Inf).numpy(),
             expected.to_tensor(default_value=np.Inf))
 
-    def test_points_in_polygon(self):
-        for d in udata.POINT_IN_QUADS:
+    def test_points_in_polygons(self):
+        for d in udata.POINTS_IN_POLYGONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
                     tfi.pointsInPolygon(d.Polygon[None, ...],
@@ -35,52 +35,52 @@ class TensorflowTestCase(unittest.TestCase):
                     d.Expected,
                 )
 
-    def test_points_in_polygon_ragged(self):
+    def test_points_in_polygons_ragged(self):
         polygons, points, expected = udata.PointsInPolygonData.ragged(
-            udata.POINT_IN_QUADS)
+            udata.POINTS_IN_POLYGONS)
         r = tfi.pointsInPolygon(polygons, points)
         np.testing.assert_almost_equal(r.numpy(), expected.numpy())
 
-    def test_boxes_intersection(self):
-        for d in udata.BOX_INTERSECTIONS:
+    def test_polygons_intersection(self):
+        for d in udata.POLYGON_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
                     tfi.uniqueVertex(
-                        tfi.intersectQuads(
-                            d.Box1[None, ...],
-                            d.Box2[None, ...],
+                        tfi.intersectPolygons(
+                            d.Polygon1[None, ...],
+                            d.Polygon2[None, ...],
                         ))[0, ...].numpy(), d.Expected)
 
-    def test_boxes_intersection_ragged(self):
-        quad1, quad2, expected = udata.BoxesIntersectionData.ragged(
-            udata.BOX_INTERSECTIONS)
+    def test_polygons_intersection_ragged(self):
+        polygon1, polygon2, expected = udata.PolygonsIntersectionData.ragged(
+            udata.POLYGON_INTERSECTIONS)
 
-        r = tfi.intersectQuads(quad1, quad2)
+        r = tfi.intersectPolygons(polygon1, polygon2)
         r = tfi.uniqueVertex(r)
         np.testing.assert_almost_equal(
             r.to_tensor(default_value=float('Inf')).numpy(),
             expected.to_tensor(default_value=float('Inf')).numpy())
 
-    def test_boxes_area(self):
+    def test_polygon_area(self):
         for d in udata.POLYGON_AREA:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(tfi.polygonArea(d.Polygon),
                                                d.Area)
 
-    def test_boxes_area_ragged(self):
+    def test_polygon_area_ragged(self):
         polygons, area = udata.PolygonArea.ragged(udata.POLYGON_AREA)
         np.testing.assert_almost_equal(
             tfi.polygonArea(polygons).numpy(), area.numpy())
 
     def test_quad_IoU(self):
-        for d in udata.BOX_INTERSECTIONS:
+        for d in udata.POLYGON_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    tfi.IoUMatrix(d.Box1[None, ...], d.Box2[None, ...])[0, 0],
-                    d.IoU)
+                    tfi.IoUMatrix(d.Polygon1[None, ...],
+                                  d.Polygon2[None, ...])[0, 0], d.IoU)
 
     def test_quad_IoUMatrix(self):
-        quads1, quads2, expected = udata.BoxesIntersectionData.IoUMatrix(
-            udata.BOX_INTERSECTIONS)
+        polygons1, polygons2, expected = udata.PolygonsIntersectionData.IoUMatrix(
+            udata.POLYGON_INTERSECTIONS)
         np.testing.assert_almost_equal(
-            tfi.IoUMatrix(quads1, quads2).numpy(), expected.numpy())
+            tfi.IoUMatrix(polygons1, polygons2).numpy(), expected.numpy())

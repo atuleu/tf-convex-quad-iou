@@ -18,37 +18,39 @@ class NumpyTestCase(unittest.TestCase):
                 )
 
     def test_points_in_polygon(self):
-        for d in udata.POINT_IN_QUADS:
+        for d in udata.POINTS_IN_POLYGONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
                     npi.pointsInPolygon(d.Polygon, d.Points),
                     d.Expected,
                 )
 
-    def test_boxes_intersection(self):
-        for d in udata.BOX_INTERSECTIONS:
+    def test_polygons_intersection(self):
+        for d in udata.POLYGON_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.uniqueVertex(npi.intersectQuads(
-                        d.Box1,
-                        d.Box2,
-                    )), d.Expected)
+                    npi.uniqueVertex(
+                        npi.intersectPolygons(
+                            d.Polygon1,
+                            d.Polygon2,
+                        )), d.Expected)
 
-    def test_boxes_area(self):
+    def test_polygon_area(self):
         for d in udata.POLYGON_AREA:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(npi.polygonArea(d.Polygon),
                                                d.Area)
 
     def test_IoU(self):
-        for d in udata.BOX_INTERSECTIONS:
+        for d in udata.POLYGON_INTERSECTIONS:
             with self.subTest(str(d)):
                 np.testing.assert_almost_equal(
-                    npi.IoUMatrix(d.Box1[None, ...], d.Box2[None, ...])[0, 0],
-                    d.IoU)
+                    npi.IoUMatrix(d.Polygon1[None, ...],
+                                  d.Polygon2[None, ...])[0, 0], d.IoU)
 
     def test_IoUMatrix(self):
-        quads1, quads2, expected = udata.BoxesIntersectionData.IoUMatrix(
-            udata.BOX_INTERSECTIONS)
+        polygons1, polygons2, expected = udata.PolygonsIntersectionData.IoUMatrix(
+            udata.POLYGON_INTERSECTIONS)
         np.testing.assert_almost_equal(
-            npi.IoUMatrix(quads1.numpy(), quads2.numpy()), expected.numpy())
+            npi.IoUMatrix(polygons1.numpy(), polygons2.numpy()),
+            expected.numpy())

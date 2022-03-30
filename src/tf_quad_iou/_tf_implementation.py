@@ -43,7 +43,8 @@ def intersectSegment(a: tf.Tensor, b: tf.Tensor, returnMask=False):
 
 @tf.function
 def pointsInPolygon(polygon, points):
-    """Test if a point lies in a given polygon
+    """
+    Test if a point lies in a given polygon
 
     Args:
         polygon (tf.Tensor): (N,4,2) ragged tensor of vertices of the polygons (order does matter)
@@ -59,11 +60,13 @@ def pointsInPolygon(polygon, points):
                 polygonRolled[..., 1] - polygon[..., 1])[:, None, :]
     onUpEdge = tf.math.logical_and(
         points[..., 1][..., None] >= polygon[..., 1][:, None, :],
-        points[..., 1][..., None] < polygonRolled[..., 1][:, None, :])
+        points[..., 1][..., None] < polygonRolled[..., 1][:, None, :],
+    )
 
     onDownEdge = tf.math.logical_and(
         points[..., 1][..., None] < polygon[..., 1][:, None, :],
-        points[..., 1][..., None] >= polygonRolled[..., 1][:, None, :])
+        points[..., 1][..., None] >= polygonRolled[..., 1][:, None, :],
+    )
     windingNumber = tf.cast(
         tf.math.logical_and(onUpEdge, side_criterion > 0.0),
         tf.int8) - tf.cast(
@@ -74,35 +77,47 @@ def pointsInPolygon(polygon, points):
 
 
 def _edges(a):
-    return tf.concat([
-        a[:, :, None, :],
-        tf.roll(a, -1, axis=-2)[:, :, None, :],
-    ],
-                     axis=-2)
+    return tf.concat(
+        [
+            a[:, :, None, :],
+            tf.roll(a, -1, axis=-2)[:, :, None, :],
+        ],
+        axis=-2,
+    )
 
 
 @tf.function
-def intersectQuads(a, b):
-    """Computes the intersection of quads
+def intersectPolygons(a, b):
+    """
+    Computes the intersection of polygons. These polygons must have
+    the same number of vertices.
 
     Args:
-        a (tf.Tensor): (N,4,2) array of quad to compute intersection
-        b (tf.Tensor): (N,4,2) array of quad to compute intersection
+        a (tf.Tensor): (N,K,2) array of polygons to compute intersection
+        b (tf.Tensor): (N,K,2) array of polygons to compute intersection
 
     Returns:
-        tf.Tensor: (N,24,2) array of the intersection definition.  It
-            may contains duplicate points.
+        tf.Tensor: (N,L,2) array of the intersection definition.  It
+            may contains duplicate points. L can grow up to K ** 2 + 2
+            * K, depending on the actual intersections and if there
+            are some duplicate created by the algorithm.
 
     """
-    N = tf.shape(a)[0]
+    nbPolygon = tf.shape(a)[0]
+    nbVertices = tf.shape(a)[1]
+
+    # 1. collects vertices of each polygon that lies in the other polygon.
     cornersAInB = pointsInPolygon(b, a)
     cornersBInA = pointsInPolygon(a, b)
     corners = tf.concat([a, b], axis=1)
     maskInside = tf.concat([cornersAInB, cornersBInA], axis=1)
 
-    edgesA = tf.reshape(tf.tile(_edges(a), multiples=[1, 1, 4, 1]),
-                        shape=[-1, 16, 2, 2])
-    edgesB = tf.tile(_edges(b), multiples=[1, 4, 1, 1])  # N,16,2,2
+    # 2. Collects all edges intersections
+    edgesA = tf.reshape(
+        tf.tile(_edges(a), multiples=[1, 1, nbVertices, 1]),
+        shape=[-1, nbVertices**2, 2, 2],
+    )
+    edgesB = tf.tile(_edges(b), multiples=[1, nbVertices, 1, 1])  # N,K*K,2,2
     intersections, maskIntersections = intersectSegment(edgesA,
                                                         edgesB,
                                                         returnMask=True)
@@ -114,6 +129,12 @@ def intersectQuads(a, b):
         sizes,
     )
 
+    # 3. Order all collected vertices in trigonometric order arround
+    # the centroid. Note: it may not be the exact centroid due to
+    # duplicate, but since its a convex shape it won't affect the
+    # order, as we only need to oder them arround a point inside the
+    # polygon.
+
     cornersAtCentroid = allCorners - tf.math.reduce_mean(allCorners,
                                                          axis=1)[:, None, :]
     angles = tf.math.atan2(
@@ -121,12 +142,15 @@ def intersectQuads(a, b):
         cornersAtCentroid[..., 0],
     )
 
-    indexes = tf.argsort(angles.to_tensor(default_value=float('Inf')), axis=1)
+    indexes = tf.argsort(angles.to_tensor(default_value=float("Inf")), axis=1)
     sortedCorners = tf.gather(allCorners.to_tensor(), indexes, batch_dims=1)
     finalMask = tf.RaggedTensor.from_row_lengths(
         tf.ones(tf.math.reduce_sum(sizes), tf.bool),
         sizes,
     )
+
+    # Now we repeat the first vertices in the last indices in order
+    # for the result to be a valid polygon for polygonArea function.
     return tf.where(
         finalMask.to_tensor()[..., None],
         sortedCorners,
@@ -146,13 +170,17 @@ def uniqueVertex(a):
 @tf.function
 def polygonArea(a):
     """
-    Computes the area of a polygon
+    Computes the area of a series of polygons. Polygons must have the
+    same number of vertices. Different number of vertices can be faked
+    by repeating any number of vertices consecutively. (Order does
+    matter).
 
     Args:
         a (tf.Tensor): (N,M,2) N polygon of M vertices
 
     Returns:
         tf.Tensor: (N,) The area of the polygons
+
     """
     rolledA = tf.roll(a, shift=-1, axis=-2)
     return 0.5 * tf.abs(
@@ -163,21 +191,24 @@ def polygonArea(a):
 
 @tf.function
 def IoUMatrix(a, b):
-    """Computes Intersection over union matrix of collection of boxes.
+    """
+    Computes Intersection over union matrix of collection of convex polygons.
 
     Args:
-        a (tf.Tensor): (N,4,2) a list of convex quads
-        b (tf.Tensor): (M,4,2) a list of convex quads
+        a (tf.Tensor): (N,K,2) a list of convex polygons.
+        b (tf.Tensor): (M,K,2) a list of convex polygons.
 
     Returns:
-        tf.Tensor: (N,M) the matrices of iou of a and b
+        tf.Tensor: (N,M) the matrices of iou of a and b.
     """
     numA = tf.shape(a)[0]
     numB = tf.shape(b)[0]
-    flatA = tf.reshape(tf.tile(a, multiples=[1, numB, 1]), shape=[-1, 4, 2])
+    numVertices = tf.shape(a)[1]
+    flatA = tf.reshape(tf.tile(a, multiples=[1, numB, 1]),
+                       shape=[-1, numVertices, 2])
     flatB = tf.tile(b, multiples=[numA, 1, 1])
 
-    intersections = intersectQuads(flatA, flatB)
+    intersections = intersectPolygons(flatA, flatB)
     areaA = polygonArea(flatA)
     areaB = polygonArea(flatB)
     areaIntersection = polygonArea(intersections)
