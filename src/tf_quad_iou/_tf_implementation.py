@@ -143,7 +143,7 @@ def uniqueVertex(a):
     return tf.ragged.constant(res)
 
 
-@tf.function(experimental_relax_shapes=True)
+@tf.function
 def polygonArea(a):
     """
     Computes the area of a polygon
@@ -161,6 +161,7 @@ def polygonArea(a):
             axis=-1))
 
 
+@tf.function
 def IoUMatrix(a, b):
     """Computes Intersection over union matrix of collection of boxes.
 
