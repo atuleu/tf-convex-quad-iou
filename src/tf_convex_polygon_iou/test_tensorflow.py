@@ -1,6 +1,6 @@
 import unittest
-import tf_quad_iou._data as udata
-import tf_quad_iou._tf_implementation as tfi
+import tf_convex_polygon_iou._data as udata
+import tf_convex_polygon_iou._tf_implementation as tfi
 import numpy as np
 
 
