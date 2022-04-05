@@ -73,7 +73,8 @@ def pointsInPolygon(polygon, points):
             tf.math.logical_and(onDownEdge, side_criterion < 0.0), tf.int8)
 
     windingNumber = tf.math.reduce_sum(windingNumber, axis=-1)
-    return windingNumber != 0
+
+    return tf.math.not_equal(windingNumber, 0)
 
 
 def _edges(a):
@@ -103,13 +104,13 @@ def intersectPolygons(a, b):
             are some duplicate created by the algorithm.
 
     """
-    nbPolygon = tf.shape(a)[0]
     nbVertices = tf.shape(a)[1]
 
     # 1. collects vertices of each polygon that lies in the other polygon.
     cornersAInB = pointsInPolygon(b, a)
     cornersBInA = pointsInPolygon(a, b)
     corners = tf.concat([a, b], axis=1)
+
     maskInside = tf.concat([cornersAInB, cornersBInA], axis=1)
 
     # 2. Collects all edges intersections
