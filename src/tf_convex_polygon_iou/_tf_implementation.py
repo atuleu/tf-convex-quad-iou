@@ -125,38 +125,36 @@ def intersectPolygons(a, b):
 
     mask = tf.concat([maskInside, maskIntersections], axis=1)
     sizes = tf.math.reduce_sum(tf.cast(mask, tf.int64), axis=-1)
-    allCorners = tf.RaggedTensor.from_row_lengths(
-        tf.boolean_mask(tf.concat([corners, intersections], axis=1), mask),
-        sizes,
-    )
 
+    allCorners = tf.concat([corners, intersections], axis=1)
+
+    # replace all non-vertices index by the first vertex found
+    allCorners = tf.where(
+        mask[..., None],
+        allCorners,
+        tf.gather(
+            allCorners,
+            tf.argmax(mask, axis=-1),
+            batch_dims=1,
+        )[:, None, :],
+    )
     # 3. Order all collected vertices in trigonometric order arround
     # the centroid. Note: it may not be the exact centroid due to
     # duplicate, but since its a convex shape it won't affect the
     # order, as we only need to oder them arround a point inside the
     # polygon.
+    centroids = tf.math.reduce_sum(
+        tf.cast(mask, tf.float32)[..., None] * allCorners, axis=-2) / tf.cast(
+            sizes, tf.float32)[..., None]
+    cornersAtCentroid = allCorners - centroids[..., None, :]
 
-    cornersAtCentroid = allCorners - tf.math.reduce_mean(allCorners,
-                                                         axis=1)[:, None, :]
     angles = tf.math.atan2(
         cornersAtCentroid[..., 1],
         cornersAtCentroid[..., 0],
     )
 
-    indexes = tf.argsort(angles.to_tensor(default_value=float("Inf")), axis=1)
-    sortedCorners = tf.gather(allCorners.to_tensor(), indexes, batch_dims=1)
-    finalMask = tf.RaggedTensor.from_row_lengths(
-        tf.ones(tf.math.reduce_sum(sizes), tf.bool),
-        sizes,
-    )
-
-    # Now we repeat the first vertices in the last indices in order
-    # for the result to be a valid polygon for polygonArea function.
-    return tf.where(
-        finalMask.to_tensor()[..., None],
-        sortedCorners,
-        sortedCorners[:, 0, :][:, None, :],
-    )
+    indexes = tf.argsort(angles, axis=1)
+    return tf.gather(allCorners, indexes, batch_dims=1)
 
 
 def uniqueVertex(a):
@@ -205,6 +203,7 @@ def IoUMatrix(a, b):
     numA = tf.shape(a)[0]
     numB = tf.shape(b)[0]
     numVertices = tf.shape(a)[1]
+
     flatA = tf.reshape(tf.tile(a, multiples=[1, numB, 1]),
                        shape=[-1, numVertices, 2])
     flatB = tf.tile(b, multiples=[numA, 1, 1])
