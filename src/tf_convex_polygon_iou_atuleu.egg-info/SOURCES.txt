@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+src/tf_convex_polygon_iou/__init__.py
+src/tf_convex_polygon_iou/_data.py
+src/tf_convex_polygon_iou/_numpy_implementation.py
+src/tf_convex_polygon_iou/_tf_implementation.py
+src/tf_convex_polygon_iou/test_numpy.py
+src/tf_convex_polygon_iou/test_tensorflow.py
+src/tf_convex_polygon_iou_atuleu.egg-info/PKG-INFO
+src/tf_convex_polygon_iou_atuleu.egg-info/SOURCES.txt
+src/tf_convex_polygon_iou_atuleu.egg-info/dependency_links.txt
+src/tf_convex_polygon_iou_atuleu.egg-info/requires.txt
+src/tf_convex_polygon_iou_atuleu.egg-info/top_level.txt
