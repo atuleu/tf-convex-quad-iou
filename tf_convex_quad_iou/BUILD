@@ -10,13 +10,13 @@ config_setting(
 py_library(
     name = "tf_convex_quad_iou",
     srcs = glob(["*.py"]),
-    deps = [
+    data = [
+        "//tf_convex_quad_iou/custom_ops/iou:_iou_matrix_ops.so",
     ],
 )
 
 py_test(
     name = "tf_convex_quad_iou_test",
-    size = "small",
     srcs = glob(["tests/*"]),
     main = "tests/run_all_test.py",
     deps = [
