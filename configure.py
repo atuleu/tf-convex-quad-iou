@@ -171,6 +171,7 @@ def configure_cuda():
 
     write("test --config=cuda")
     write("build --config=cuda")
+    write('build --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"')
     write("build:cuda --define=using_cuda=true --define=using_cuda_nvcc=true")
     write("build:cuda --crosstool_top=@local_config_cuda//crosstool:toolchain")
 
