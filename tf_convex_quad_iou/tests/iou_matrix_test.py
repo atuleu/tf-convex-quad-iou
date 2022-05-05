@@ -7,21 +7,21 @@ sqrt2 = math.sqrt(2)
 anchors = np.array([
     [
         [-1, -1],
-        [-1, 1],
-        [1, 1],
         [1, -1],
+        [1, 1],
+        [-1, 1],
     ],
     [
         [0, 0],
-        [0, 2],
-        [2, 2],
         [2, 0],
+        [2, 2],
+        [0, 2],
     ],
     [
         [0, sqrt2],
-        [sqrt2, 0],
-        [0, -sqrt2],
         [-sqrt2, 0],
+        [0, -sqrt2],
+        [sqrt2, 0],
     ],
     [
         [-1, 1],
@@ -41,9 +41,9 @@ anchors = np.array([
 quads = np.array([
     [
         [-1, -1],
-        [-1, 1],
-        [1, 1],
         [1, -1],
+        [1, 1],
+        [-1, 1],
     ],
     [
         [100, 200],
@@ -64,7 +64,7 @@ expected = np.array([
 
 
 def test_iou_matrix():
-    np.testing.assert_equal(
+    np.testing.assert_almost_equal(
         iou_matrix(anchors=anchors, quads=quads).numpy(),
         expected,
     )
