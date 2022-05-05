@@ -49,6 +49,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     distclass=BinaryDistribution,
+    url="https://github.com/atuleu/tf-convex-quad-iou",
+    project_urls={
+        "Bug Tracker": "https://github.com/atuleu/tf-convex-quad-iou/issues",
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

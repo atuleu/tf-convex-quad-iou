@@ -1,33 +1,40 @@
-# tf-convex-polygon-iou
+# tf-convex-quad-iou
 
-Convex Polygons Intersection over Union (IoU) computation for tensorflow.
+Convex Quad Intersection over Union (IoU) computation for tensorflow.
 
-This repository is a a generalization of https://github.com/lilanxiao/Rotated_IoU to convex polygons, and ported to tensorflow 2.
+This repository is a rewrite of the algorithm in
+https://github.com/NVIDIA/retinanet-examples to compute intersections
+of convex quads. The algorithm have been lightly modified to have a
+better handling of coincident corners.
 
-
-## Approach
-
-The algorithm here may not be optimal, but only uses available tensorflow operations.
-
-The most complex parts are to compute the intersection of two convex polygon.
-
-As for the original work, it is based on [Livermore, Califf, 1977](https://www.osti.gov/servlets/purl/7309916/). which remarks:
-
-* Intersection of two convex polygons is a convex polygon
-* A vertex from a polygon that is contained in the other polygon is a vertex of the intersection shape. 
-* An edge from a polygon that is contained in the other polygon is an edge in the intersection shape. 
-* Edge intersections between two polygons are vertices in the intersection shape.
-
-Therefore the algorithm here:
-1. Finds all vertices in a polygon that lies within the other, by computing the [winding number](https://web.archive.org/web/20130126163405/http://geomalgorithms.com/a03-_inclusion.html).
-2. Finds all intersection between edge other edges of the two polygons.
-3. Sorts all vertices in trigonometric order arround a point inside the polygon (die to duplicates, it cannot be ensured that it is the centroid of the polygon).
-
-To compute the IoU, one must finally compute the area of the intersection. The used formula is robust to duplicate vertices, if the order of vertices is right.
-
-## Requirements
+## Installation
 
 ```
-tensorflow >= 2.8.0 # it may be lower, but it is not tested
+pip install tf-convex-quad-iou-atuleu
 ```
 
+### Installing from source
+
+
+#### Requirements
+
+ * tensorflow >= 2.8.0
+ * bazelisk
+
+#### Steps by steps
+
+If you want to compile both CPU and GPU custom operation, please set
+the global variable TF_NEED_CUDA to 1
+
+```bash
+git clone https://github.com/atuleu/tf-convex-quad-iou.git
+cd tf-convex-quad-iou
+
+export TF_NEED_CUDA="1" # do not export if you do not need cuda support
+python3 configure.py
+
+bazel build build_pip_pkg
+bazel-bin/build_pip_pkg artifacts
+
+pip install artifacts/tf_convex_quad_iou_atuleu*.whl
+```
