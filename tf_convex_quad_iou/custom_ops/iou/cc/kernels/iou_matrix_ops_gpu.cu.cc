@@ -13,7 +13,9 @@ namespace convex_quad_iou {
 
 using GPUDevice = Eigen::GpuDevice;
 
+
 namespace {
+
 
 template <typename T>
 __global__ void IoUMatrixKernel(const T* __restrict__ anchors,
@@ -26,7 +28,8 @@ __global__ void IoUMatrixKernel(const T* __restrict__ anchors,
 	     i += blockDim.x * gridDim.x) {
 		int iAnchors = i / quads_size;
 		int iQuads = i - iAnchors * quads_size;
-		output[i] = __ldg(quads + 8 * iQuads) * __ldg(anchors + 8 * iAnchors);
+		output[i] = ComputeIoU<T>(anchors + 8 * iAnchors,
+		                          quads + 8 * iQuads);
 	}
 }
 
@@ -45,7 +48,8 @@ struct IoUMatrixFunctor<GPUDevice,T> {
 	                const int quads_size) {
 		const int output_size =
 			anchors_size * quads_size;
-		GpuLaunchConfig config = GetGpuLaunchConfig(output_size, d);
+		GpuLaunchConfig config = GetGpuLaunchConfig(output_size, d,
+		                                            IoUMatrixKernel<T>,0,0);
 		TF_CHECK_OK(GpuLaunchKernel(IoUMatrixKernel<T>,
 		                            config.block_count,
 		                            config.thread_per_block,
