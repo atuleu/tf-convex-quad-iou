@@ -1,7 +1,7 @@
 """Convex quad IoU for tensorflow.
 
-This packages proposes a function to efficiently compute convex quad
-IoU matrices.
+This packages proposes a function to efficiently compute IoU matrices
+for two set of convex quads.
 
 """
 from pathlib import Path
@@ -10,7 +10,7 @@ from setuptools import Distribution, find_packages, setup, Extension
 
 DOCLINES = __doc__.split("\n")
 
-project_name = 'tf-convex-quad-iou'
+project_name = 'tf-convex-quad-iou-atuleu'
 version = '0.1.0'
 
 
