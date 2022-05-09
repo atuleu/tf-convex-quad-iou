@@ -14,6 +14,7 @@ iou_matrix_ops = load_library.load_op_library(
 
 
 @tf.function
+@tf.autograph.experimental.do_not_convert
 def iou_matrix(anchors: tf.Tensor,
                quads: tf.Tensor,
                name: Optional[Text] = None) -> tf.Tensor:
@@ -30,5 +31,6 @@ def iou_matrix(anchors: tf.Tensor,
         a [N,M] Tensor with the IoU between each sets of quads
     """
     with tf.name_scope(name or "iou_matrix"):
-        return iou_matrix_ops.ConvexQuadIoU_IoUMatrix(anchors=anchors,
-                                                      quads=quads)
+        return tf.stop_gradient(
+            iou_matrix_ops.ConvexQuadIoU_IoUMatrix(anchors=anchors,
+                                                   quads=quads))

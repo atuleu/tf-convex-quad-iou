@@ -127,6 +127,7 @@ T ComputeIoU( const T * quad1Buffer,
 
 	RotateArray(quad1Rotated,4);
 	RotateArray(quad2Rotated,4);
+
 	int size = ComputeIntersection(quad1,quad1Rotated,intersection);
 	for ( int i = 0; i < size; ++i) {
 		intersectionRotated[i] = intersection[(i + 1) % size];
@@ -135,9 +136,13 @@ T ComputeIoU( const T * quad1Buffer,
 	T area1 = ComputeArea(quad1,quad1Rotated,4);
 	T area2 = ComputeArea(quad2,quad2Rotated,4);
 	T areaIntersection(0.0);
-	if ( size > 2) {
+	if ( size > 2 && area1 > T{0.0} && area2 > T{0.0}) {
 		areaIntersection = ComputeArea(intersection,intersectionRotated,size);
+	} else {
+		area1 = T{1.0};
+		area2 = T{1.0};
 	}
+
 	return areaIntersection / ( area1 + area2 - areaIntersection);
 }
 
