@@ -34,3 +34,23 @@ def iou_matrix(anchors: tf.Tensor,
         return tf.stop_gradient(
             iou_matrix_ops.ConvexQuadIoU_IoUMatrix(anchors=anchors,
                                                    quads=quads))
+
+
+@tf.function
+@tf.autograph.experimental.do_not_convert
+def quad_copy(quads: tf.Tensor, name: Optional[Text] = None) -> tf.Tensor:
+    """Computes the IoU matrices between anchors and quads.
+
+    Computes the Intersection over Union between two sets of convex
+    quadrilateral.  Vertices coordinates must be ordered in
+    mathematical order arround the quad centroid.
+
+    Args:
+        anchors:  a [N,4,2] Tensor reprensenting the vertices of each anchor quads
+        quads: a [M,4,2]  Tensor reprensenting the vertices of each quads to test.
+    Returns:
+        a [N,M] Tensor with the IoU between each sets of quads
+    """
+    with tf.name_scope(name or "quad_copy"):
+        return tf.stop_gradient(
+            iou_matrix_ops.ConvexQuadIoU_QuadCopy(input=quads))

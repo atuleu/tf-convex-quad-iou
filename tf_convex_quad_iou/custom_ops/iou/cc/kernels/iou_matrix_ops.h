@@ -10,6 +10,8 @@
 
 #include "tensorflow/core/framework/op_kernel.h"
 
+#include <iomanip>
+
 namespace tensorflow {
 namespace convex_quad_iou {
 
@@ -18,6 +20,23 @@ typedef Eigen::GpuDevice GPUDevice;
 
 template <typename T>
 using Float2 = Eigen::Matrix<T,2,1>;
+
+template <typename T, int R>
+std::string HexDump(const Eigen::Matrix<T,R,1> & v) {
+	std::ostringstream oss;
+	for ( int i = 0 ; i < R; ++i) {
+		T vi = v(i);
+		auto asChar = (const unsigned char *)(&vi);
+		for ( unsigned int j = 0; j < sizeof(T); ++j) {
+			if ( j % 2 == 0 ) {
+				oss << " 0x";
+			}
+			oss << std::hex << std::setw(2) << std::setfill('0') << int(asChar[sizeof(T) - 1 - j]);
+		}
+	}
+	return oss.str();
+}
+
 
 template <typename T>
 class Line {
@@ -30,6 +49,7 @@ public:
 		, b ( v1.x() - v2.x())
 		, c ( v2.x() * v1.y() - v2.y() * v1.x() ) {
 	}
+
 	EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
 	T Project(const Float2<T> & p) const {
 		return a * p.x() + b * p.y() + c;
@@ -40,7 +60,10 @@ public:
 		T w(a * other.b - b * other.a);
 		return Float2<T>(b * other.c - c * other.b, c * other.a - a * other.c) / w;
 	}
+
 };
+
+
 
 template<typename U>
 EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
@@ -73,12 +96,12 @@ int ComputeIntersection(const Float2<T> * quad,
 
 		int tempCount = count;
 		count = 0;
-#define appendIntersection(v) do { \
+#define appendIntersection(v) do {	  \
 			tempIntersection[count] = v; \
 			count += 1; \
 		} while(0)
 
-		for ( int j = 0; j < tempCount; j++) {
+		for ( int j = 0; j < tempCount; ++j) {
 			if ( lineValues[j] <= 0 ) {
 				appendIntersection(intersection[j]);
 			}
@@ -91,7 +114,6 @@ int ComputeIntersection(const Float2<T> * quad,
 		for ( int j = 0; j < count; ++j) {
 			intersection[j] = tempIntersection[j];
 		}
-
 	}
 
 	return count;
@@ -111,6 +133,12 @@ T ComputeArea(const Float2<T> * poly,
 
 template <typename T>
 EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+Float2<T> CastTo(const Eigen::Array<bool,2,1> & m) {
+	return m.cast<T>();
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
 T ComputeIoU( const T * quad1Buffer,
               const T * quad2Buffer) {
 	Float2<T> quad1[4],quad2[4];
@@ -122,28 +150,52 @@ T ComputeIoU( const T * quad1Buffer,
 		quad2[i] = Eigen::Map<const Float2<T>>(quad2Buffer + 2 * i);
 		quad1Rotated[i] = quad1[i];
 		quad2Rotated[i] = quad2[i];
-		intersection[i] = quad2[i];
+
+#define EPSILON_TH T {1e-10}
+#define EPSILON_ADD  T {1e-7}
+
+		Float2<T> pad = CastTo<T> ((quad1[i] - quad2[i]).array().abs() < EPSILON_TH ) * EPSILON_ADD;
+		intersection[i] = quad2[i] + pad;
 	}
 
 	RotateArray(quad1Rotated,4);
 	RotateArray(quad2Rotated,4);
+
+
 
 	int size = ComputeIntersection(quad1,quad1Rotated,intersection);
 	for ( int i = 0; i < size; ++i) {
 		intersectionRotated[i] = intersection[(i + 1) % size];
 	}
 
+
+
 	T area1 = ComputeArea(quad1,quad1Rotated,4);
 	T area2 = ComputeArea(quad2,quad2Rotated,4);
 	T areaIntersection(0.0);
 	if ( size > 2 && area1 > T{0.0} && area2 > T{0.0}) {
-		areaIntersection = ComputeArea(intersection,intersectionRotated,size);
+		areaIntersection = std::min(ComputeArea(intersection,intersectionRotated,size),std::min(area1,area2));
 	} else {
 		area1 = T{1.0};
 		area2 = T{1.0};
 	}
 
+
 	return areaIntersection / ( area1 + area2 - areaIntersection);
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+void CopyQuad(const T * input,
+              T * output) {
+	output[0] = input[0];
+	output[1] = input[1];
+	output[2] = input[2];
+	output[3] = input[3];
+	output[4] = input[4];
+	output[5] = input[5];
+	output[6] = input[6];
+	output[7] = input[7];
 }
 
 
@@ -157,6 +209,14 @@ struct IoUMatrixFunctor {
 	                T * __restrict__ output,
 	                const int anchors_size,
 	                const int quads_size);
+};
+
+template <typename Device,typename T>
+struct QuadCopyFunctor {
+	void operator()(OpKernelContext * ctx, const Device & d,
+	                const T * __restrict__ input,
+	                T * __restrict__ output,
+	                const int size);
 };
 
 

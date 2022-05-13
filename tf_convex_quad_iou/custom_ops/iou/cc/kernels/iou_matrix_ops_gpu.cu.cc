@@ -29,7 +29,17 @@ __global__ void IoUMatrixKernel(const T* __restrict__ anchors,
 		int iAnchors = i / quads_size;
 		int iQuads = i - iAnchors * quads_size;
 		output[i] = ComputeIoU<T>(anchors + 8 * iAnchors,
-		                          quads + 8 * iQuads);
+		                      quads + 8 * iQuads);
+	}
+}
+
+template <typename T>
+__global__ void QuadCopyKernel(const T * __restrict__ input,
+                           T * __restrict__ output,
+                           const int size) {
+	for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < size;
+	     i += blockDim.x * gridDim.x) {
+		CopyQuad<T>(input + 8 * i,output + 8* i);
 	}
 }
 
@@ -64,6 +74,30 @@ struct IoUMatrixFunctor<GPUDevice,T> {
 template struct IoUMatrixFunctor<GPUDevice,Eigen::half>;
 template struct IoUMatrixFunctor<GPUDevice,float>;
 template struct IoUMatrixFunctor<GPUDevice,double>;
+
+template <typename T>
+struct QuadCopyFunctor<GPUDevice,T> {
+	void operator()(OpKernelContext * ctx, const GPUDevice & d,
+	                const T * __restrict__ input,
+	                T * __restrict__ output,
+	                const int size) {
+		GpuLaunchConfig config = GetGpuLaunchConfig(size, d,
+		                                            QuadCopyKernel<T>,0,0);
+		TF_CHECK_OK(GpuLaunchKernel(QuadCopyKernel<T>,
+		                            config.block_count,
+		                            config.thread_per_block,
+		                            0,
+		                            d.stream(),
+		                            input,
+		                            output,
+		                            size));
+	}
+};
+
+template struct QuadCopyFunctor<GPUDevice,Eigen::half>;
+template struct QuadCopyFunctor<GPUDevice,float>;
+template struct QuadCopyFunctor<GPUDevice,double>;
+
 
 } // namespace functor
 

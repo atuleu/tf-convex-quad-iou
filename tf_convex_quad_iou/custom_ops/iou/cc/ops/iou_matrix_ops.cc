@@ -27,5 +27,23 @@ REGISTER_OP("ConvexQuadIoU>IoUMatrix")
 	            })
 	.Doc(R"doc(IoU Matrix Op.)doc");
 
+REGISTER_OP("ConvexQuadIoU>QuadCopy")
+	.Input("input: T")
+	.Output("output: T")
+	.Attr("T: {float, double}")
+	.SetShapeFn([](InferenceContext * c) {
+		            for ( int i = 0; i < 1; ++i ) {
+			            ShapeHandle input;
+			            TF_RETURN_IF_ERROR(c->WithRank(c->input(i),3,&input));
+			            DimensionHandle dim1,dim2;
+			            TF_RETURN_IF_ERROR(c->WithValue(c->Dim(c->input(i),1),4,&dim1));
+			            TF_RETURN_IF_ERROR(c->WithValue(c->Dim(c->input(i),2),2,&dim2));
+		            }
+		            c->set_output(0,c->input(0));
+		            return Status::OK();
+	            })
+	.Doc(R"doc(Copy Quad Op.)doc");
+
+
 } // namespace convex_quad_iou
 } // namespace tensorflow
