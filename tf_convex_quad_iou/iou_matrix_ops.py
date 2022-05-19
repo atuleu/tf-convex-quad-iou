@@ -17,6 +17,7 @@ iou_matrix_ops = load_library.load_op_library(
 @tf.autograph.experimental.do_not_convert
 def iou_matrix(anchors: tf.Tensor,
                quads: tf.Tensor,
+               debug=False,
                name: Optional[Text] = None) -> tf.Tensor:
     """Computes the IoU matrices between anchors and quads.
 

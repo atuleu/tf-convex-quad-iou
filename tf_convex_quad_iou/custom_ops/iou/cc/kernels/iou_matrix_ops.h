@@ -21,166 +21,253 @@ typedef Eigen::GpuDevice GPUDevice;
 template <typename T>
 using Float2 = Eigen::Matrix<T,2,1>;
 
-template <typename T, int R>
-std::string HexDump(const Eigen::Matrix<T,R,1> & v) {
-	std::ostringstream oss;
-	for ( int i = 0 ; i < R; ++i) {
-		T vi = v(i);
-		auto asChar = (const unsigned char *)(&vi);
-		for ( unsigned int j = 0; j < sizeof(T); ++j) {
-			if ( j % 2 == 0 ) {
-				oss << " 0x";
-			}
-			oss << std::hex << std::setw(2) << std::setfill('0') << int(asChar[sizeof(T) - 1 - j]);
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+T isLeft(const Float2<T> & p1,
+         const Float2<T> & p2,
+         const Float2<T> & a) {
+	return ( p2.x() - p1.x() ) * ( a.y() - p1.y()) - ( a.x() - p1.x() ) * ( p2.y() - p1.y() );
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+bool isInside(const Float2<T> & vertex,
+              const Float2<T> * quad) {
+
+	int wn = 0;
+	for ( int i = 0; i < 4; ++i ) {
+		int j = (i+1) % 4;
+		T sideCriterion = isLeft(quad[i],quad[j],vertex);
+
+		bool onUpEdge = (vertex.y() >= quad[i].y()) && ( vertex.y() <= quad[j].y() );
+		bool onDownEdge = (vertex.y() <= quad[i].y()) && ( vertex.y() >= quad[j].y() );
+
+		if ( onUpEdge && sideCriterion >= 0) {
+			wn += sideCriterion == 0.0 ? 1 : 2;
+		}
+		if ( onDownEdge && sideCriterion <= 0 ) {
+			wn -= sideCriterion == 0.0 ? 1 : 2;
 		}
 	}
-	return oss.str();
+	return wn != 0;
 }
-
-
-template <typename T>
-class Line {
-	T a,b,c;
-public:
-	EIGEN_DEVICE_FUNC
-	Line(const Float2<T> & v1,
-	     const Float2<T> & v2)
-		: a ( v2.y() - v1.y())
-		, b ( v1.x() - v2.x())
-		, c ( v2.x() * v1.y() - v2.y() * v1.x() ) {
-	}
-
-	EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-	T Project(const Float2<T> & p) const {
-		return a * p.x() + b * p.y() + c;
-	}
-
-	EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-	Float2<T> Intersection(const Line & other) const {
-		T w(a * other.b - b * other.a);
-		return Float2<T>(b * other.c - c * other.b, c * other.a - a * other.c) / w;
-	}
-
-};
-
-
-
-template<typename U>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-void RotateArray(U * array,int size) {
-	U temp = array[0];
-	for ( int i = 1; i < size; ++i) {
-		array[i-1] = array[i];
-	}
-	array[size-1] = temp;
-}
-
 
 template <typename T>
 EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-int ComputeIntersection(const Float2<T> * quad,
-                        const Float2<T> * quadRotated,
-                        Float2<T> * intersection) {
-	int count = 4;
+bool intersectSegments(const Float2<T> & a1,
+                       const Float2<T> & a2,
+                       const Float2<T> & b1,
+                       const Float2<T> & b2,
+                       Float2<T> * result) {
+	T D = (a1.x() - a2.x() ) * ( b1.y() - b2.y() ) - ( a1.y() - a2.y() ) * ( b1.x() - b2.x() );
+	if ( abs(D) < 1e-6 ) {
+		// parallel case, we have no intersection.
+		return false;
+	}
+	T t = (a1.x() - b1.x() ) * ( b1.y() - b2.y() ) - ( a1.y() - b1.y() ) * ( b1.x() - b2.x() );
+	t /= D;
+	T u = (a1.x() - b1.x() ) * ( a1.y() - a2.y() ) - ( a1.y() - b1.y() ) * ( a1.x() - a2.x() );
+	u /= D;
+	if ( t < 0.0 || t > 1.0 || u < 0.0 || u > 1.0 ) {
+		return false;
+	}
+	*result = a1 + t * ( a2 - a1);
+	return true;
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+int insertNoDuplicate(Float2<T> * array,
+                      const Float2<T> & v,
+                      int size) {
+	for ( int i = 0; i < size; ++i ) {
+		if ( ( array[i] - v ).array().abs().maxCoeff() < 1e-6 ) {
+			return size;
+		}
+	}
+	array[size] = v;
+	return size + 1;
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+int computeIntersectionVertices(const Float2<T> * quad1,
+                                const Float2<T> * quad2,
+                                Float2<T> * intersection) {
+	int size = 0;
+	bool v1Inside2[4];
+	bool v2Inside1[4];
+
 	for ( int i = 0; i < 4; ++i) {
-		Line<T> l(quad[i],quadRotated[i]);
-		T lineValues[8],lineValuesRotated[8];
-		Eigen::Matrix<T,2,1> intersectionRotated[8],tempIntersection[8];
-		for ( int j = 0; j < count; ++j) {
-			lineValues[j] = l.Project(intersection[j]);
-			lineValuesRotated[j] = lineValues[j];
-			intersectionRotated[j] = intersection[j];
+		v1Inside2[i] = isInside(quad1[i],quad2);
+	}
+
+
+
+	for ( int i = 0; i < 4; ++i) {
+		v2Inside1[i] = isInside(quad2[i],quad1);
+	}
+
+
+	for ( int i = 0; i < 4; ++i) {
+		if ( v1Inside2[i] ) {
+			size = insertNoDuplicate(intersection,quad1[i],size);
 		}
-		RotateArray(lineValuesRotated,count);
-		RotateArray(intersectionRotated,count);
-
-		int tempCount = count;
-		count = 0;
-#define appendIntersection(v) do {	  \
-			tempIntersection[count] = v; \
-			count += 1; \
-		} while(0)
-
-		for ( int j = 0; j < tempCount; ++j) {
-			if ( lineValues[j] <= 0 ) {
-				appendIntersection(intersection[j]);
-			}
-			if ( ( lineValues[j] * lineValuesRotated[j] ) < 0 ) {
-				Line<T> l1(intersection[j],intersectionRotated[j]);
-				appendIntersection(l.Intersection(l1));
-			}
-		}
-
-		for ( int j = 0; j < count; ++j) {
-			intersection[j] = tempIntersection[j];
+		if ( v2Inside1[i] ) {
+			size = insertNoDuplicate(intersection,quad2[i],size);
 		}
 	}
 
-	return count;
+	for ( int i = 0; i < 4; ++i) {
+		// we prune away non-intersecting edges (or consecutive concurrent edges)
+		int nextI = (i+1) % 4;
+		if ( v1Inside2[i] == true && v1Inside2[nextI] == true ) {
+			continue;
+		}
+
+		for ( int j = 0; j < 4; ++j ) {
+			int nextJ = (j+1) % 4;
+			if ( v2Inside1[j] == true && v2Inside1[nextJ] == true ) {
+				continue;
+			}
+
+			Float2<T> res;
+			if ( intersectSegments(quad1[i],
+			                       quad1[nextI],
+			                       quad2[j],
+			                       quad2[nextJ],
+			                       &res) ) {
+
+				size = insertNoDuplicate(intersection,res,size);
+				if ( size >= 8 ) {
+					return size;
+				}
+			}
+		}
+	}
+	return size;
 }
 
 template <typename T>
 EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-T ComputeArea(const Float2<T> * poly,
-              const Float2<T> * polyRotated,
+void completeVertices(Float2<T> * vertices,
+                     int size,
+                     const int finalSize) {
+	if ( size <= 0 ) {
+		vertices[0] = Float2<T>::Zero();
+		size = 1;
+	}
+	for ( ; size < finalSize; ++size ) {
+		vertices[size] = vertices[size-1];
+	}
+}
+
+template <typename U>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+void swap( U * array, int i, int j) {
+	U tmp = array[i];
+	array[i] = array[j];
+	array[j] = tmp;
+}
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+void sortVerticesArroundCentroid(Float2<T> * vertices) {
+	T angles[8];
+	Float2<T> centroid = Float2<T>::Zero();
+	for ( int i = 0; i < 8; ++i) {
+		centroid += vertices[i] / T{8.0};
+	}
+
+	for ( int i = 0; i < 8; ++i) {
+		Float2<T> atCentroid = vertices[i] - centroid;
+		angles[i] = T {atan2(atCentroid.y(),atCentroid.x())};
+	}
+
+#define compareSwap(i,j,values,otherArray) do {	  \
+		if ( values[i] > values[j] ) {\
+			swap(values,i,j); \
+			swap(otherArray,i,j); \
+		} \
+	}while(0)
+
+	// 8 input optimal sorting network
+	// (http://users.telenet.be/bertdobbelaere/SorterHunter/sorting_networks.html#N8L19D6
+
+	compareSwap(0,2,angles,vertices);
+	compareSwap(1,3,angles,vertices);
+	compareSwap(4,6,angles,vertices);
+	compareSwap(5,7,angles,vertices);
+
+	compareSwap(0,4,angles,vertices);
+	compareSwap(1,5,angles,vertices);
+	compareSwap(2,6,angles,vertices);
+	compareSwap(3,7,angles,vertices);
+
+	compareSwap(0,1,angles,vertices);
+	compareSwap(2,3,angles,vertices);
+	compareSwap(4,5,angles,vertices);
+	compareSwap(6,7,angles,vertices);
+
+	compareSwap(2,4,angles,vertices);
+	compareSwap(3,5,angles,vertices);
+
+	compareSwap(1,4,angles,vertices);
+	compareSwap(3,6,angles,vertices);
+
+	compareSwap(1,2,angles,vertices);
+	compareSwap(3,4,angles,vertices);
+	compareSwap(5,6,angles,vertices);
+}
+
+
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+void computeIntersection(const Float2<T> * quad1,
+                         const Float2<T> * quad2,
+                         Float2<T> * intersection) {
+	int size = computeIntersectionVertices(quad1,quad2,intersection);
+	completeVertices(intersection,size,8);
+	sortVerticesArroundCentroid(intersection);
+}
+
+
+template <typename T>
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
+T computeArea(const Float2<T>* vertices,
               const int size) {
-	T result(0);
+	T result = T {0.0};
 	for ( int i = 0; i < size; ++i) {
-		result += poly[i].x() * polyRotated[i].y() - poly[i].y() * polyRotated[i].x();
+		int j = (i + 1) % size;
+		result += vertices[i].x() * vertices[j].y() - vertices[i].y() * vertices[j].x();
 	}
-	return abs(result / T(2.0));
+	return abs(result) / T{2.0};
 }
 
-template <typename T>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-Float2<T> CastTo(const Eigen::Array<bool,2,1> & m) {
-	return m.cast<T>();
-}
 
 template <typename T>
 EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
 T ComputeIoU( const T * quad1Buffer,
               const T * quad2Buffer) {
 	Float2<T> quad1[4],quad2[4];
-	Float2<T> quad1Rotated[4],quad2Rotated[4];
-	Float2<T> intersection[8],intersectionRotated[8];
-
+	Float2<T> intersection[8];
 	for ( int i = 0; i < 4; ++i) {
 		quad1[i] = Eigen::Map<const Float2<T>>(quad1Buffer + 2 * i);
 		quad2[i] = Eigen::Map<const Float2<T>>(quad2Buffer + 2 * i);
-		quad1Rotated[i] = quad1[i];
-		quad2Rotated[i] = quad2[i];
-
-#define EPSILON_TH T {1e-10}
-#define EPSILON_ADD  T {1e-7}
-
-		Float2<T> pad = CastTo<T> ((quad1[i] - quad2[i]).array().abs() < EPSILON_TH ) * EPSILON_ADD;
-		intersection[i] = quad2[i] + pad;
 	}
 
-	RotateArray(quad1Rotated,4);
-	RotateArray(quad2Rotated,4);
+	computeIntersection(quad1,quad2,intersection);
 
-
-
-	int size = ComputeIntersection(quad1,quad1Rotated,intersection);
-	for ( int i = 0; i < size; ++i) {
-		intersectionRotated[i] = intersection[(i + 1) % size];
-	}
-
-
-
-	T area1 = ComputeArea(quad1,quad1Rotated,4);
-	T area2 = ComputeArea(quad2,quad2Rotated,4);
+	T area1 = computeArea(quad1,4);
+	T area2 = computeArea(quad2,4);
 	T areaIntersection(0.0);
-	if ( size > 2 && area1 > T{0.0} && area2 > T{0.0}) {
-		areaIntersection = std::min(ComputeArea(intersection,intersectionRotated,size),std::min(area1,area2));
+	if ( area1 > T{0.0} && area2 > T{0.0} ) {
+		areaIntersection = std::min(computeArea(intersection,8),std::min(area1,area2));
 	} else {
 		area1 = T{1.0};
 		area2 = T{1.0};
 	}
-
-
 	return areaIntersection / ( area1 + area2 - areaIntersection);
 }
 

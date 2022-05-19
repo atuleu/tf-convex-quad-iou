@@ -27,13 +27,11 @@ struct IoUMatrixFunctor<CPUDevice, T> {
 	                const int anchors_size,
 	                const int quads_size) {
 		auto thread_pool = ctx->device()->tensorflow_cpu_worker_threads()->workers;
-		std::mutex m;
 		auto toLoop =
-			[&m,&anchors,&quads,&output,quads_size](int64 startIndex,int64 endIndex) {
+			[&anchors,&quads,&output,quads_size](int64 startIndex,int64 endIndex) {
 				for ( int i = startIndex; i < endIndex; ++i) {
 					int anchorsIndex = i / quads_size;
 					int quadsIndex = i - quads_size * anchorsIndex;
-					//					std::lock_guard<std::mutex> lock(m);
 					output[i] = ComputeIoU<T>(anchors + 8 * anchorsIndex,
 					                          quads + 8 * quadsIndex);
 				}
@@ -102,6 +100,7 @@ public:
 		OP_REQUIRES_OK(ctx,TensorShapeUtils::MakeShape(gtl::ArraySlice<int32>({anchorsSize,quadsSize}),
 		                                               &outputShape));
 
+
 		Tensor * output = nullptr;
 		OP_REQUIRES_OK(ctx,ctx->allocate_output(0,outputShape,&output));
 
@@ -124,6 +123,7 @@ private:
 	REGISTER_KERNEL_BUILDER(Name("ConvexQuadIoU>IoUMatrix").Device(DEVICE_CPU).TypeConstraint<TYPE>("T"), \
 	                        IoUMatrixOp<CPUDevice, TYPE>);
 
+TF_CALL_half(REGISTER);
 TF_CALL_float(REGISTER);
 TF_CALL_double(REGISTER);
 
@@ -134,6 +134,7 @@ TF_CALL_double(REGISTER);
 	REGISTER_KERNEL_BUILDER(Name("ConvexQuadIoU>IoUMatrix").Device(DEVICE_GPU).TypeConstraint<TYPE>("T"), \
 	                        IoUMatrixOp<GPUDevice, TYPE>)
 
+TF_CALL_half(REGISTER);
 TF_CALL_float(REGISTER);
 TF_CALL_double(REGISTER);
 #undef REGISTER
@@ -176,6 +177,7 @@ private:
 	REGISTER_KERNEL_BUILDER(Name("ConvexQuadIoU>QuadCopy").Device(DEVICE_CPU).TypeConstraint<TYPE>("T"), \
 	                        CopyQuadOp<CPUDevice, TYPE>);
 
+TF_CALL_half(REGISTER);
 TF_CALL_float(REGISTER);
 TF_CALL_double(REGISTER);
 
@@ -186,6 +188,7 @@ TF_CALL_double(REGISTER);
 	REGISTER_KERNEL_BUILDER(Name("ConvexQuadIoU>QuadCopy").Device(DEVICE_GPU).TypeConstraint<TYPE>("T"), \
 	                        CopyQuadOp<GPUDevice, TYPE>)
 
+TF_CALL_half(REGISTER);
 TF_CALL_float(REGISTER);
 TF_CALL_double(REGISTER);
 #undef REGISTER

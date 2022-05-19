@@ -7,6 +7,7 @@
 #include "tensorflow/core/util/gpu_kernel_helper.h"
 #include "tf_convex_quad_iou/custom_ops/iou/cc/kernels/iou_matrix_ops.h"
 
+#define TO_DEBUG (i == 2 )
 
 namespace tensorflow {
 namespace convex_quad_iou {
@@ -26,10 +27,12 @@ __global__ void IoUMatrixKernel(const T* __restrict__ anchors,
 	int size = anchors_size * quads_size;
 	for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < size;
 	     i += blockDim.x * gridDim.x) {
+
 		int iAnchors = i / quads_size;
 		int iQuads = i - iAnchors * quads_size;
 		output[i] = ComputeIoU<T>(anchors + 8 * iAnchors,
-		                      quads + 8 * iQuads);
+		                          quads + 8 * iQuads);
+
 	}
 }
 
@@ -60,6 +63,7 @@ struct IoUMatrixFunctor<GPUDevice,T> {
 			anchors_size * quads_size;
 		GpuLaunchConfig config = GetGpuLaunchConfig(output_size, d,
 		                                            IoUMatrixKernel<T>,0,0);
+
 		TF_CHECK_OK(GpuLaunchKernel(IoUMatrixKernel<T>,
 		                            config.block_count,
 		                            config.thread_per_block,

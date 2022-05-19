@@ -60,15 +60,18 @@ expected = np.array([
     [1.0, 0.0],
     [1 / 7, 0.0],
     [(1 - (sqrt2 - 1)**2) / (1 + (sqrt2 - 1)**2), 0.0],
-    [(2 - 1 / 2) / (4 + 1 / 2), 0.0],
+    [1 / 3, 0.0],
     [0.0, 0.0],
     [0.0, 0.0],
 ])
 
 
 def test_iou_matrix():
+    r = iou_matrix(anchors=anchors, quads=quads, debug=True).numpy()
+    print(r)
+    print(expected)
     np.testing.assert_almost_equal(
-        iou_matrix(anchors=anchors, quads=quads).numpy(),
+        r,
         expected,
     )
 
@@ -146,6 +149,38 @@ confused = [
     ]),
                  Expected=np.array([[1.0, 0.68989813], [0.68989813, 1.0]],
                                    dtype=np.float32)),
+    ConfusedData(Quads=np.array([
+        [
+            [0.32142857, 0.89285713],
+            [0.4642857, 0.89285713],
+            [0.4642857, 1.0357143],
+            [0.32142857, 1.0357143],
+        ],
+        [
+            [0.29184186, 0.96428573],
+            [0.39285713, 0.86327046],
+            [0.4938724, 0.96428573],
+            [0.39285713, 1.065301],
+        ],
+    ]),
+                 Expected=np.array([[1.0, 0.707107], [0.707107, 1.0]],
+                                   dtype=np.float32)),
+    ConfusedData(Quads=np.array([
+        [
+            [-0.03265049, -0.00739667],
+            [0.06836477, -0.00739667],
+            [0.06836477, 0.04311096],
+            [-0.03265049, 0.04311096],
+        ],
+        [
+            [0.07449237, -0.00739667],
+            [0.17550763, -0.00739667],
+            [0.17550763, 0.04311096],
+            [0.07449237, 0.04311096],
+        ],
+    ]),
+                 Expected=np.array([[1.0, 0.0], [0.0, 1.0]],
+                                   dtype=np.float32)),
 ]
 
 
@@ -156,23 +191,17 @@ def test_iou_matrix_confused(d):
     np.testing.assert_almost_equal(iou.numpy(), d.Expected, decimal=6)
 
 
-@pytest.mark.parametrize("t", [tf.float32, tf.float16, tf.half])
-def test_quad_copy(t):
-    a = tf.cast(_anchors, dtype=t)
-    np.testing.assert_equal(quad_copy(quads=a).numpy(), a.numpy())
-
-
 @pytest.mark.slow
 @pytest.mark.parametrize("index", range(tf.shape(_anchors)[0]))
 def test_iou_matrix_with_anchor(index):
     iou = iou_matrix(_anchors, _anchors[index, ...][None, ...])
     amax = tf.argmax(iou, axis=0)
     maxIoU = tf.math.reduce_max(iou).numpy()
-    # np.testing.assert_equal(
-    #     amax.numpy(), [index],
-    #     err_msg=
-    #     f"between quads {_anchors[amax.numpy()[0],...].numpy()} and {_anchors[index,...].numpy()}"
-    # )
+    np.testing.assert_equal(
+        amax.numpy(), [index],
+        err_msg=
+        f"between quads {_anchors[amax.numpy()[0],...].numpy()} and {_anchors[index,...].numpy()}"
+    )
     np.testing.assert_allclose(
         maxIoU,
         1.0,
